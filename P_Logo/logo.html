@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Draw logo</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+	<style>
+		canvas {
+			image-rendering: pixelated;
+			image-rendering: crisp-edges;
+			-webkit-font-smoothing : none;
+			font-smooth: never;
+			width: 640px;
+			height: 512px;
+		}
+	</style>
+	<script type="text/javascript">
+		let obj = {
+			width: 0,
+			height: 0,
+			cords: [],
+			box: [],
+			rotY: 0,
+			boxRot: []
+		}
+
+		function getContext(id) {
+			const c = document.getElementById(id);
+			const ctx = c.getContext('2d');
+			ctx.globalAlpha = 1.0;
+			ctx.imageSmoothingEnabled = false;
+			return ctx;
+		}
+
+		function DrawLogo(ctx, txt) {
+			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			ctx.font = 'bold 56px Orbitron, sans-serif';
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText(txt, 160, 128);
+		}
+
+		function ReadCords(ctx, obj) {
+			obj.width = ctx.canvas.width;
+			obj.height = ctx.canvas.height;
+			obj.cords = [];
+			const img = ctx.getImageData(0, 0, obj.width, obj.height);
+			const d = img.data;
+			const pixelSz = 4;	// RGBA
+			const rowSz = pixelSz * obj.width;
+			for (let i = 0; i < obj.width; i++) {
+				let vslice = [];
+				let p = i * pixelSz;
+				let col = [d[p+0], d[p+1], d[p+2], d[p+3]];	//RGBA
+				p+=rowSz;	// next row
+				for (let j = 1; j < obj.height; j++) {
+					let colN = [d[p+0], d[p+1], d[p+2], d[p+3]];	//RGBA
+					p+=rowSz;	// next row
+					// save Y on color change
+					if (col[0] !== colN[0] || col[1] !== colN[1] || col[2] !== colN[2] || col[3] !== colN[3]) {
+						vslice.push(j);
+						col=colN;
+					}
+				}
+				obj.cords.push(vslice);
+			}
+		}
+
+		function trimEmptyLeft(obj) {
+			for (let i = 0; i < obj.cords.length; i++) {
+				if (obj.cords[i].length > 0) {
+					obj.cords = obj.cords.slice(i);
+					obj.width = obj.cords.length;
+					return;
+				}
+			}
+			obj.cords = [];
+			obj.width = obj.cords.length;
+		}
+
+		function trimEmptyRight(obj) {
+			for (let i = obj.cords.length-1; i >= 0; i--) {
+				if (obj.cords[i].length > 0) {
+					obj.cords = obj.cords.slice(0,i);
+					obj.width = obj.cords.length;
+					return;
+				}
+			}
+			obj.cords = [];
+			obj.width = obj.cords.length;
+		}
+
+		function centerY(obj) {
+			let minY = obj.height;
+			let maxY = 0;
+			for (let i = 0; i < obj.cords.length; i++) {
+				for (let j = 0; j < obj.cords[i].length; j++) {
+					if (obj.cords[i][j] < minY) {
+						minY = obj.cords[i][j];
+					}
+					if (obj.cords[i][j] > maxY) {
+						maxY = obj.cords[i][j];
+					}
+				}
+			}
+			obj.height = maxY - minY;
+			let cY = minY + obj.height / 2;
+			for (let i = 0; i < obj.cords.length; i++) {
+				for (let j = 0; j < obj.cords[i].length; j++) {
+					obj.cords[i][j] -= cY;
+				}
+			}
+		}
+
+		function createBox(obj) {
+			const x = Math.round(obj.width / 2);
+			const y = Math.round(obj.height / 2);
+			const z = Math.round(obj.height / 4);
+			obj.box = [
+				{x: -x,	y: -y,	z: -z},
+				{x: x,	y: -y,	z: -z},
+				{x: x,	y: y,	z: -z},
+				{x: -x,	y: y,	z: -z},
+
+				{x: -x,	y: -y,	z: z},
+				{x: x,	y: -y,	z: z},
+				{x: x,	y: y,	z: z},
+				{x: -x,	y: y,	z: z},
+			];
+		}
+
+		function GenerateAmiga(name,obj) {
+			let src = `${name}:\n`;
+			src += `	dc.w	${obj.width},${obj.height}	; width, height\n`;
+			src += `	dc.w	0	; Y angle\n`;
+			src += `${name}_VSlicesForward:	; vertical slices forward pointers\n`;
+			src += `	ds.l	${obj.cords.length},0\n`;
+			src += `${name}_VSlicesBackward:	; vertical slices backward pointers\n`;
+			src += `	ds.l	${obj.cords.length},0\n`;
+			src += `${name}_BoxRot:	; rotated box dots, front and back\n`;
+			src += `	ds.w	${obj.box.length}*3,0\n`;
+			src += `${name}_Box:	; box dots, front and back\n`;
+			obj.box.forEach(c => {
+				src += `	dc.w	${c.x},${c.y},${c.z}	; x,y,z\n`
+			});
+			src += `${name}_VSlices:	; vertical slices, count, y cords\n`;
+			obj.cords.forEach(vslice => {
+				src += `	dc.w	${vslice.length}`;
+				vslice.forEach(yCord =>{
+					src += `,${yCord}`;
+				});
+				src += `\n`;
+			});
+			src += `\n`;
+			
+			const pre = document.getElementById("amigaSrc");
+			pre.innerHTML = src;
+		}
+
+		function Generate() {
+			const ctx = getContext('canvas');
+			DrawLogo(ctx,'REALITY');
+			ReadCords(ctx, obj);
+			trimEmptyLeft(obj);
+			trimEmptyRight(obj);
+			centerY(obj);
+			createBox(obj);
+			GenerateAmiga("Q_RealityLogo", obj);
+			console.log(obj);
+		}
+
+		function DrawObj(ctx, obj) {
+			ctx.lineWidth=1;
+			ctx.strokeStyle = 'rgb(0,0,0)';
+			const centerY = ctx.canvas.height / 2;
+			const startX = (ctx.canvas.width - obj.width) / 2;
+			for (let x = 0; x < obj.cords.length; x++) {
+				let l=0;
+				const slices = obj.cords[x];
+				while (l < slices.length) {
+					ctx.beginPath();
+					ctx.moveTo(x + startX, slices[l++] + centerY);
+					ctx.lineTo(x + startX, slices[l++] + centerY);
+					ctx.stroke();
+				}
+			}
+		}
+
+		function RotateY(obj) {
+			obj.boxRot = [];
+			const sinY = Math.sin(obj.rotY);
+			const cosY = Math.cos(obj.rotY);
+			for (let i = 0; i < obj.box.length; i++) {
+				let r = obj.box[i];
+				let p = {
+					x: Math.round(r.x * cosY - r.z * sinY),
+					y: Math.round(r.y),
+					z: Math.round(r.x * sinY + r.z * cosY)
+				};
+				obj.boxRot.push(p);
+			}
+		}
+
+		function DrawRotBox(ctx, obj, front) {
+			const cX = Math.round(ctx.canvas.width / 2);
+			const cY = Math.round(ctx.canvas.height / 2);
+
+			let sIdx = 0;
+			ctx.strokeStyle = 'rgb(0,0,255)';
+			if (!front) {
+				sIdx=4;
+				ctx.strokeStyle = 'rgb(255,0,0)';
+			}
+			ctx.beginPath();
+			ctx.moveTo(obj.boxRot[sIdx].x + cX, obj.boxRot[sIdx].y + cY);
+			for (let i = sIdx+1; i < sIdx+4; i++) {
+				ctx.lineTo(obj.boxRot[i].x + cX, obj.boxRot[i].y + cY);
+			}
+			ctx.lineTo(obj.boxRot[sIdx].x + cX, obj.boxRot[sIdx].y + cY);
+			ctx.stroke();
+		}
+
+		function DrawFront(ctx, obj) {
+			ctx.strokeStyle = 'rgb(0,0,255)';
+			const w = obj.boxRot[1].x - obj.boxRot[0].x;
+			const y = ctx.canvas.height / 2;
+			let x  = Math.round(ctx.canvas.width / 2 + obj.boxRot[0].x);
+			DrawPlane(ctx, obj, x, y, w);
+		}
+
+		function DrawBack(ctx, obj) {
+			ctx.strokeStyle = 'rgb(255,0,0)';
+			const w = obj.boxRot[5].x - obj.boxRot[4].x;
+			const y = ctx.canvas.height / 2;
+			let x  = Math.round(ctx.canvas.width / 2 + obj.boxRot[4].x);
+			DrawPlane(ctx, obj, x, y, w);
+		}
+
+		function DrawPlane(ctx, obj, x, y, w) {
+			let xStep = 1;
+			let hStep = obj.width / w;
+			if (hStep < 0) {
+				xStep = -xStep;
+				hStep = -hStep;
+			}
+			let vSlice = 0;
+			while (Math.round(vSlice) < obj.cords.length) {
+				let l=0;
+				const slices = obj.cords[Math.round(vSlice)];
+				while (l < slices.length) {
+					ctx.beginPath();
+					ctx.moveTo(x, slices[l++] + y);
+					ctx.lineTo(x, slices[l++] + y);
+					ctx.stroke();
+				}
+				x+=xStep;
+				vSlice += hStep;
+			}
+		}
+
+		function DrawMiddle(ctx, obj) {
+			ctx.strokeStyle = 'rgb(0,255,0)';
+
+			// width and y center position
+			const w = obj.boxRot[1].x - obj.boxRot[0].x;
+			const y = ctx.canvas.height / 2;
+
+			// front and back x position
+			let xf = Math.round(ctx.canvas.width / 2 + obj.boxRot[0].x);
+			let xb = Math.round(ctx.canvas.width / 2 + obj.boxRot[4].x);
+
+			let xStep = 1;
+			let hStep = obj.width / w;
+			if (hStep < 0) {
+				xStep = -xStep;
+				hStep = -hStep;
+			}
+
+			let vSlice = 0;
+			while (Math.round(vSlice) < obj.cords.length) {
+				let l=0;
+				const slices = obj.cords[Math.round(vSlice)];
+				while (l < slices.length) {
+					if (xf != xb) {
+						ctx.beginPath();
+						ctx.moveTo(xf, slices[l] + y);
+						ctx.lineTo(xb, slices[l] + y);
+						ctx.stroke();
+					}
+					l++;
+				}
+				xf+=xStep;
+				xb+=xStep;
+				vSlice += hStep;
+			}
+		}
+
+		function TestDraw() {
+			const ctx = getContext('drawTest');
+			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			ctx.translate(0.5,0.5);	// 0.5 is for crisp lines
+			DrawObj(ctx, obj);
+			ctx.translate(-0.5,-0.5);	// 0.5 is for crisp lines
+		}
+
+		let animCtx = null;
+		let animRun = false;
+		let animSpeed = 2;
+
+		function draw(ctx, obj) {
+			ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+			ctx.translate(0.5,0.5);	// 0.5 is for crisp lines
+			ctx.lineWidth=1;
+
+			RotateY(obj);
+			const pi12 = Math.PI / 2;
+			const pi34 = pi12 + Math.PI;
+			if (obj.rotY >= pi12 && obj.rotY <= pi34) {
+				DrawFront(ctx, obj);
+				DrawRotBox(ctx, obj, true);
+				DrawMiddle(ctx, obj);
+				DrawBack(ctx, obj);
+				DrawRotBox(ctx, obj, false);
+			} else {
+				DrawBack(ctx, obj);
+				DrawRotBox(ctx, obj, false);
+				DrawMiddle(ctx, obj);
+				DrawFront(ctx, obj);
+				DrawRotBox(ctx, obj, true);
+			}
+			ctx.translate(-0.5,-0.5);	// 0.5 is for crisp lines
+		}
+
+		function animate() {
+			if (animRun) {
+				draw(animCtx, obj);
+				const Pi2 = Math.PI * 2;
+				obj.rotY += Math.PI / 180 / animSpeed;
+				if (obj.rotY > Pi2) {
+					obj.rotY -= Pi2;
+				}
+				window.requestAnimationFrame(animate);
+			} else {
+				obj.rotY = 0;
+				draw(animCtx, obj);
+			}
+		}
+
+		function TestRotate(btn) {
+			if (!animRun) {
+				btn.textContent = 'Stop Rotate';
+				animRun = true;
+				animCtx = getContext('drawTest');
+				window.requestAnimationFrame(animate);
+			} else {
+				btn.textContent = 'Test Rotate';
+				animRun = false;
+			}
+		}
+	</script>
+</head>
+<body>
+	<p style="font-size: 30px; font-family: Orbitron, sans-serif; font-weight: 700;">Font sample, REALITY</p>
+	<div style="float: left;">
+		<button onclick="Generate()">Generate</button>
+		<div>
+			<canvas id="canvas" width="320" height="256" style="border: solid 1px red;" />
+		</div>
+	</div>
+	<div style="float: left;">
+		<button onclick="TestDraw()">Test Draw</button>
+		<button onclick="TestRotate(this)">Test Rotate</button>
+		<div>
+			<canvas id="drawTest" width="320" height="256" style="border: solid 1px blue;" />
+		</div>
+	</div>
+	<pre id="amigaSrc" style="float: none; clear: both;"></pre>
+</body>
+</html>

@@ -1,0 +1,153 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "FS-UAE A500+ Run",
+			"noDebug": true,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "fs-uae",
+			"emulatorArgs": [
+				"--amiga_model=A500+",
+				"--chip_memory=512",
+				"--slow_memory=512",
+				"--hard_drive_0=${workspaceFolder}/uae/dh0",
+				"--joystick_port_1=none",
+				"--automatic_input_grab=0",
+				"--video_sync=off",
+				//"--window_width=692",
+				//"--window_height=540",
+				//"--viewport= * * * * => 0 0 752 574",
+				//"--zoom=full"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "FS-UAE A500+ Debug",
+			"stopOnEntry": false,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "fs-uae",
+			"emulatorArgs": [
+				"--amiga_model=A500+",
+				"--chip_memory=512",
+				"--slow_memory=512",
+				"--hard_drive_0=${workspaceFolder}/uae/dh0",
+				"--joystick_port_1=none",
+				"--automatic_input_grab=0",
+				"--video_sync=off",
+				"--window_width=692",
+				"--window_height=540"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "FS-UAE A1200 Run",
+			"noDebug": true,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "fs-uae",
+			"emulatorArgs": [
+				"--amiga_model=A1200",
+				"--chip_memory=2048",
+				"--fast_memory=2048",
+				"--hard_drive_0=${workspaceFolder}/uae/dh0",
+				"--joystick_port_1=none",
+				"--automatic_input_grab=0",
+				"--video_sync=off",
+				"--window_width=692",
+				"--window_height=540"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "FS-UAE A1200 Debug",
+			"stopOnEntry": false,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "fs-uae",
+			"emulatorArgs": [
+				"--amiga_model=A1200",
+				"--chip_memory=2048",
+				"--fast_memory=2048",
+				"--hard_drive_0=${workspaceFolder}/uae/dh0",
+				"--joystick_port_1=none",
+				"--automatic_input_grab=0",
+				"--video_sync=off",
+				"--window_width=692",
+				"--window_height=540"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "WinUAE A500+ Run",
+			"noDebug": true,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorArgs": [
+				"-s",
+				"quickstart=a500+,1",
+				"-s",
+				"filesystem=rw,dh0:${workspaceFolder}/uae/dh0"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "WinUAE A500+ Debug",
+			"stopOnEntry": false,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "winuae",
+			"emulatorArgs": [
+				"-s",
+				"quickstart=a500+,1",
+				"-s",
+				"filesystem=rw,dh0:${workspaceFolder}/uae/dh0"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "WinUAE A1200 Run",
+			"noDebug": true,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorArgs": [
+				"-s",
+				"quickstart=a1200,1",
+				"-s",
+				"filesystem=rw,dh0:${workspaceFolder}/uae/dh0"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		},
+		{
+			"type": "amiga-assembly",
+			"request": "launch",
+			"name": "WinUAE A1200 Debug",
+			"stopOnEntry": false,
+			"program": "${workspaceFolder}/uae/dh0/Demo",
+			"remoteProgram": "SYS:Demo",
+			"emulatorType": "winuae",
+			"emulatorArgs": [
+				"-s",
+				"quickstart=a1200,1",
+				"-s",
+				"filesystem=rw,dh0:${workspaceFolder}/uae/dh0"
+			],
+			"preLaunchTask": "amigaassembly: build"
+		}
+	]
+}
