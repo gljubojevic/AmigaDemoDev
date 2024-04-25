@@ -26,7 +26,7 @@ COPPERINT	= 1	;use 1 if Copper int othervise is vertb int
 INPUTHANDLER	= 0	;use 1 if using input handler
 DOSLIB		= 0	;use 1 if dos library is needed
 DMA_ACTIVATE	= (DMAF_SETCLR|DMAF_SPRITE|DMAF_BLITTER|DMAF_COPPER|DMAF_RASTER)
-PART_TIMING	= 1	;use 1 for time measure in VBlank
+PART_TIMING	= 0	;use 1 for time measure in VBlank
 
 ;***********************************
 ;Macro for running parts
@@ -46,7 +46,8 @@ PART_RUN:	MACRO
 ;***********************************
 ; Demo parts for on/off
 PART_EXAMPLE		= 0	; include Example demo part
-PART_BLANK_VECTOR	= 1	; include Blank Vector demo part
+PART_BLANK_VECTOR	= 0	; include Blank Vector demo part
+PART_BLANK_VECTOR_CB	= 1	; include Blank Vector copper blitter demo part
 
 Demo:	
 	movem.l	d0-a6,-(sp)
@@ -68,6 +69,7 @@ Demo_MainLoop:
 
 	PART_RUN PART_EXAMPLE, EP
 	PART_RUN PART_BLANK_VECTOR, BV
+	PART_RUN PART_BLANK_VECTOR_CB, BV
 
 	;IF	INPUTHANDLER=1
 	;tst.b	ESCKey
@@ -131,6 +133,10 @@ VTBInt_End:
 	;AUTO	CS\R_SinCosTable\0\450\5120\32767\0\W1\yy
 	ENDIF
 
+	IF	PART_BLANK_VECTOR_CB=1
+	INCLUDE	"P_BlankVectorCB/BlankVectorCB.s"
+	;AUTO	CS\R_SinCosTable\0\450\5120\32767\0\W1\yy
+	ENDIF
 ;***************************************************
 ;Public/Fast data
 ;***************************************************
@@ -164,6 +170,10 @@ VTBInt_End:
 	INCLUDE	"P_BlankVector/BlankVector_Data_C.s"
 	ENDIF
 
+	IF	PART_BLANK_VECTOR_CB=1
+	INCLUDE	"P_BlankVectorCB/BlankVectorCB_Data_C.s"
+	ENDIF
+
 ;***************************************************
 ;Chip BSS
 ;***************************************************
@@ -175,4 +185,8 @@ VTBInt_End:
 
 	IF	PART_BLANK_VECTOR=1
 	INCLUDE	"P_BlankVector/BlankVector_Bss_C.s"
+	ENDIF
+
+	IF	PART_BLANK_VECTOR_CB=1
+	INCLUDE	"P_BlankVectorCB/BlankVectorCB_Bss_C.s"
 	ENDIF

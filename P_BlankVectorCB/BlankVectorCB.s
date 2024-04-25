@@ -4,6 +4,8 @@
 	INCLUDE	"hardware/custom.i"	
 	INCDIR	""
 
+BLITTER_WITH_COPPER	= 1	;Blitter will be triggered with copper
+
 ;*****************************************************************
 ;Init for demo part, Do all init for part here e.g. create tables
 ;prepare copper list etc...
@@ -24,6 +26,11 @@ BV_Init:
 	move.l	a0,Curent_Object
 	bsr	RotateXYZ
 	bsr	Draw_Object_Test
+
+	;Enable copper to use blitter
+	IF	BLITTER_WITH_COPPER=1
+	move.w	#$0002,copcon(a6)
+	ENDIF
 
 	;return values for part
 	lea	BV_Copper,a0
@@ -50,6 +57,11 @@ BV_Wait:
 	bge.s	BV_Wait
 
 BV_Exit:
+	;Disable copper to use blitter
+	IF	BLITTER_WITH_COPPER=1
+	move.w	#$0000,copcon(a6)
+	ENDIF
+
 	movem.l (sp)+,d0-d7/a1-a6
 	rts
 
@@ -185,6 +197,8 @@ BFS_Wait_Blitter:
 
 Clear_Screen:
 	movem.l	a0-a6/d0-d7,-(sp)
+	IF	BLITTER_WITH_COPPER=0
+
 CS_Wait_Blitter:
 	btst	#$0006,$0002(a6)
 	bne.s	CS_Wait_Blitter
@@ -192,6 +206,20 @@ CS_Wait_Blitter:
 	move.w	#$0000,$0066(a6)
 	move.l	VideoBuffers(pc),$0054(a6)
 	move.w	#256*64+320/16,$0058(a6)
+
+	ELSE
+
+	move.l	VideoBuffers(pc),d0
+	lea	BV_CCB_Destination,a0
+	move.w	d0,$6(a0)
+	swap	d0
+	move.w	d0,$2(a0)
+	move.w	#256*64+320/16,$a(a0)
+	lea	BV_CopperClearBlitter,a0
+	move.l	a0,cop2lc(a6)
+	move.w	#0,copjmp2(a6)
+
+	ENDIF
 
 	moveq	#$00,d0
 	moveq	#$00,d1
