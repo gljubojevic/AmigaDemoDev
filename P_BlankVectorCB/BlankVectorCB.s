@@ -68,12 +68,14 @@ BV_VBlank:
 	movem.l d0-a6,-(sp)
 
 	bsr	Clear_Screen
+	;move.w	#$00f0,$180(a6)
 	bsr	Draw_And_Fill
+	;move.w	#$0000,$180(a6)
 
 	bsr	Write_Copper
 	bsr	VideoBuffersSwap
 
-	;move.w	#$00f0,$180(a6)
+	;move.w	#$00ff,$180(a6)
 	bsr	Move_Object
 	bsr	RotateXYZ
 	bsr	Draw_Object_Test
@@ -468,6 +470,7 @@ Draw_And_Fill:
 
 	lea	BV_CopperDrawBlitter,a5
 	; line drawing common
+	;move.l	#$01800ff0,(a5)+
 	move.l	#$00010000,(a5)+	;Wait blitter
 	move.l	#$0001fffe,(a5)+
 	move.w	#bltbdat,(a5)+
@@ -485,20 +488,30 @@ Draw_And_Fill:
 
 	lea	DOT_Line_Area(pc),a3	;Line Area in a3
 DO_Next_Line:
-	move.w	(a3)+,d4		;Get Color in d4
+	move.w	(a3)+,d4		;Color in d4
 	bmi.s	DO_Draw_Clipped
-	movem.w	(a3)+,d0-d3
-	bsr.w	Line
+	movem.w	(a3)+,d0-d3		;x0,y0 -> d0,d1 x1,y1 -> d2,d3
+	cmp.w	d1,d3			;Compare y0 and y1
+	beq	DO_Next_Line		;if y0=y1 then no line
+	bgt.s	DOL_NoChange		;if y1>y0 then Cords ok !!
+	exg	d2,d0			;Exchange x0 with x1
+	exg	d3,d1			;Exchange y0 with y1
+DOL_NoChange:
+	bsr	Line
 	bra.s	DO_Next_Line
 
 DO_Draw_Clipped:
 	lea	DOT_Clipped(pc),a3
 DO_Next_Clipped_Line:
-	move.w	(a3)+,d4
+	move.w	(a3)+,d4		;Color in d4
 	bmi.s	DO_Fill
-	move.w	(a3)+,d1
-	move.w	(a3)+,d3
-	bsr.w	Line_Vertical
+	movem.w	(a3)+,d1/d3		;y0 -> d1 y1 -> d3
+	cmp.w	d1,d3			;Compare y0 and y1
+	beq	DO_Next_Clipped_Line	;if y0=y1 then no line
+	bgt.s	DOV_NoChange		;if y1>y0 then Cords ok !!
+	exg	d1,d3			;Exchange y0 with y1
+DOV_NoChange:
+	bsr	Line_Vertical
 	bra.s	DO_Next_Clipped_Line
 
 DO_Fill:
@@ -516,13 +529,11 @@ DO_Fill:
 	move.l	a0,d0
 	move.w	#bltapt+2,(a5)+
 	move.w	d0,(a5)+
-	swap	d0
-	move.w	#bltapt,(a5)+
-	move.w	d0,(a5)+
-	move.l	a0,d0
 	move.w	#bltdpt+2,(a5)+
 	move.w	d0,(a5)+
 	swap	d0
+	move.w	#bltapt,(a5)+
+	move.w	d0,(a5)+
 	move.w	#bltdpt,(a5)+
 	move.w	d0,(a5)+
 	move.w	#bltamod,(a5)+
@@ -534,6 +545,7 @@ DO_Fill:
 
 	move.l	#$00010000,(a5)+	;Wait blitter finish
 	move.l	#$0001fffe,(a5)+
+	;move.l	#$01800f0f,(a5)+
 	move.l	#$fffffffe,(a5)+	;End of Copper list
 	move.l	#$fffffffe,(a5)+	;End of Copper list
 
@@ -544,14 +556,17 @@ DO_Fill:
 	movem.l	(sp)+,d0-a5
 	rts
 
-Line:	movem.l	d2-d7/a3,-(sp)
-	cmp.w	d1,d3			;Compare y0 and y1
-	beq	L_End			;if y0=y1 then no line
-	bgt.s	L_NoChange		;if y1>y0 then Cords ok !!
-	exg	d2,d0			;Exchange x0 with x1
-	exg	d3,d1			;Exchange y0 with y1
-L_NoChange:
-	subq	#1,d3			;y1=y1-1
+;---------------------------------------------------------
+;Blitter line, writes copper list for blitter regs assumes
+;line size at least 1px and drawn top to bottom
+;d0,d1 - x0,y0
+;d2,d3 - x1,y1
+;d4 - color index
+;a0 - Video buffer
+;a1 - Y offset table
+;a2 - Blitter size table
+;a5 - Copper list to write to
+Line:	subq	#1,d3			;y1=y1-1
 	sub.w	d1,d3			;Calculate dy=y1-y0
 	sub.w	d0,d2			;Calculate dx=x1-x0
 	bmi.s	L_dxNeg			
@@ -572,11 +587,11 @@ L_Finish:
 	swap	d5
 	add.w	d1,d1		;y1 * 4 calc offset
 	move.w	0(a1,d1.w),d1	;Get y offset from table
-	lea	0(a0,d1.w),a3	;Calc Address of pixel row
+	lea	0(a0,d1.w),a4	;Calc Address of pixel row
 	move.w	d0,d1		;x0 in d1
 	lsr.w	#4,d1		;x0 / 16
 	add.w	d1,d1		;x0 * 2 For Address of First Pixel
-	lea	0(a3,d1.w),a3	;Adress of First Pixel in a2
+	lea	0(a4,d1.w),a4	;Adress of First Pixel in a4
 	andi.w	#$000f,d0	;Get Shift in d0
 	ror.w	#$0004,d0	;place Shift value
 	or.w	d0,d5		;b4a-or mode and bca-normal mode
@@ -613,28 +628,34 @@ L_NextBitmap:
 	move.w	#bltcon0,(a5)+	;BLTCON0
 	move.w	d5,(a5)+
 	swap	d5
-	move.l	a3,d6
+	move.l	a4,d6
 	move.w	#bltcpt+2,(a5)+	;BLTCPTL
+	move.w	d6,(a5)+
+	move.w	#bltdpt+2,(a5)+	;BLTDPTL
 	move.w	d6,(a5)+
 	swap	d6
 	move.w	#bltcpt,(a5)+	;BLTCPTH
 	move.w	d6,(a5)+
-	swap	d6
-	move.w	#bltdpt+2,(a5)+	;BLTDPTL
-	move.w	d6,(a5)+
-	swap	d6
 	move.w	#bltdpt,(a5)+	;BLTDPTH
 	move.w	d6,(a5)+
 	move.w	#bltsize,(a5)+	;BLTSIZE
 	move.w	d2,(a5)+
 L_NothingOnBM:
-	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a3
+	lea	L_BMapWid(a4),a4	;Adress of next Bit Map in a4
 	dbf	d7,L_NextBitmap
-L_End:	movem.l	(sp)+,d2-d7/a3
 	rts
 
+;------------------------------------------------------------------
+;Blitter line vertical, writes copper list for blitter regs assumes
+;line size at least 1px and drawn top to bottom only right edge
+;d1 - y0
+;d3 - y1
+;d4 - color index
+;a0 - Video buffer
+;a1 - Y offset table
+;a2 - Blitter size table
+;a5 - Copper list to write to
 Line_Vertical:
-	movem.l	d2-d7/a3,-(sp)
 	cmp.w	d1,d3
 	beq	LV_End
 	bgt.s	LV_NoChange
@@ -645,7 +666,7 @@ LV_NoChange:
 	move.l	#$fb4a0043,d5
 	add.w	d1,d1
 	move.w	$00(a1,d1.w),d1
-	lea	$26(a0,d1.w),a3
+	lea	(L_BMapWid-2)(a0,d1.w),a4
 	move.w	d3,d1		;dx in d1
 	neg.w	d1
 	add.w	d3,d3
@@ -673,25 +694,22 @@ LV_NextBitmap:
 	move.w	#bltcon0,(a5)+	;BLTCON0
 	move.w	d5,(a5)+
 	swap	d5
-	move.l	a3,d6
+	move.l	a4,d6
 	move.w	#bltcpt+2,(a5)+	;BLTCPTL
+	move.w	d6,(a5)+
+	move.w	#bltdpt+2,(a5)+	;BLTDPTL
 	move.w	d6,(a5)+
 	swap	d6
 	move.w	#bltcpt,(a5)+	;BLTCPTH
 	move.w	d6,(a5)+
-	swap	d6
-	move.w	#bltdpt+2,(a5)+	;BLTDPTL
-	move.w	d6,(a5)+
-	swap	d6
 	move.w	#bltdpt,(a5)+	;BLTDPTH
 	move.w	d6,(a5)+
 	move.w	#bltsize,(a5)+	;BLTSIZE
 	move.w	d2,(a5)+
 LV_NothingOnBM:
-	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a2
+	lea	L_BMapWid(a4),a4	;Adress of next Bit Map in a4
 	dbf	d7,LV_NextBitmap
-LV_End:	movem.l	(sp)+,d2-d7/a3
-	rts
+LV_End:	rts
 
 Move_Object:
 	movem.l	d0-d1/a0,-(sp)
