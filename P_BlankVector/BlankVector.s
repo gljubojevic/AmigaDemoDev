@@ -72,7 +72,11 @@ BV_VBlank:
 	bsr	Move_Object
 	bsr	RotateXYZ
 	bsr	Draw_Object_Test
-	;move.w	#$0000,$180(a6)
+	;move.w	#$0f0f,$180(a6)
+;CI_Wait_Blitter:
+;	btst	#$0006,$0002(a6)
+;	bne.s	CI_Wait_Blitter
+;	move.w	#$0000,$180(a6)
 
 	movem.l (sp)+,d0-a6
 	rts
