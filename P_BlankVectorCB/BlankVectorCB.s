@@ -470,9 +470,9 @@ Draw_And_Fill:
 
 	lea	BV_CopperDrawBlitter,a5
 	; line drawing common
-	;move.l	#$01800ff0,(a5)+
+	move.l	#$01800ff0,(a5)+
 	move.l	#$00010000,(a5)+	;Wait blitter
-	move.l	#$0001fffe,(a5)+
+	;move.l	#$0001fffe,(a5)+
 	move.w	#bltbdat,(a5)+
 	move.w	#$ffff,(a5)+
 	move.w	#bltadat,(a5)+
@@ -517,7 +517,8 @@ DOV_NoChange:
 DO_Fill:
 	lea	$4ffe(a0),a0
 	move.l	#$00010000,(a5)+
-	move.l	#$0001fffe,(a5)+
+	;move.l	#$0001fffe,(a5)+
+	move.l	#$01800f0f,(a5)+
 	move.w	#bltcon0,(a5)+
 	move.w	#$09f0,(a5)+
 	move.w	#bltcon1,(a5)+
@@ -544,8 +545,8 @@ DO_Fill:
 	move.w	#$8014,(a5)+
 
 	move.l	#$00010000,(a5)+	;Wait blitter finish
-	move.l	#$0001fffe,(a5)+
-	;move.l	#$01800f0f,(a5)+
+	;move.l	#$0001fffe,(a5)+
+	move.l	#$01800000,(a5)+
 	move.l	#$fffffffe,(a5)+	;End of Copper list
 	move.l	#$fffffffe,(a5)+	;End of Copper list
 
@@ -613,7 +614,7 @@ L_NextBitmap:
 	lsr.w	#1,d4
 	bcc.s	L_NothingOnBM
 	move.l	#$00010000,(a5)+
-	move.l	#$0001fffe,(a5)+
+	;move.l	#$0001fffe,(a5)+
 	move.w	#bltamod,(a5)+	;BLTAMOD
 	move.w	d3,(a5)+	;2dy-2dx
 	swap	d3
@@ -679,7 +680,7 @@ LV_NextBitmap:
 	lsr.w	#1,d4
 	bcc.s	LV_NothingOnBM
 	move.l	#$00010000,(a5)+
-	move.l	#$0001fffe,(a5)+
+	;move.l	#$0001fffe,(a5)+
 	move.w	#bltamod,(a5)+	;BLTAMOD
 	move.w	d3,(a5)+	;2dy-2dx
 	swap	d3

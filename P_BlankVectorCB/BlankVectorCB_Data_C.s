@@ -47,7 +47,7 @@ BV_CColors:
 BV_CopperClearBlitter:
 	dc.w	$0180,$0f00
 	dc.w	$0001,$0000	;Wait Blitter
-	dc.w	$0001,$fffe	;Wait Blitter
+	;dc.w	$0001,$fffe	;Wait Blitter
 
 	dc.w	bltcon0,$0100
 	dc.w	bltcon1,$0000
@@ -57,7 +57,7 @@ BV_CCB_Destination:
 	dc.w	bltsize,$0000
 
 	dc.w	$0001,$0000	;Wait Blitter
-	dc.w	$0001,$fffe	;Wait Blitter
+	;dc.w	$0001,$fffe	;Wait Blitter
 	dc.w	$0180,$0000
 
 	dc.w	$ffff,$fffe	;End of Copper List
