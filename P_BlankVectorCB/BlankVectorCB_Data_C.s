@@ -62,3 +62,10 @@ BV_CCB_Destination:
 
 	dc.w	$ffff,$fffe	;End of Copper List
 	dc.w	$ffff,$fffe	;End of Copper List
+
+	CNOP	0,8
+BV_CopperDrawBlitter:
+	blk.b	32,0		;Line prepare
+	blk.b	52,0		;Fill
+	blk.b	48*2*24,0	;Line*Bitmaps*MaxLines
+	blk.b	8,0		;End of Copper List

@@ -4,8 +4,6 @@
 	INCLUDE	"hardware/custom.i"	
 	INCDIR	""
 
-BLITTER_WITH_COPPER	= 1	;Blitter will be triggered with copper
-
 ;*****************************************************************
 ;Init for demo part, Do all init for part here e.g. create tables
 ;prepare copper list etc...
@@ -28,9 +26,7 @@ BV_Init:
 	bsr	Draw_Object_Test
 
 	;Enable copper to use blitter
-	IF	BLITTER_WITH_COPPER=1
 	move.w	#$0002,copcon(a6)
-	ENDIF
 
 	;return values for part
 	lea	BV_Copper,a0
@@ -58,9 +54,7 @@ BV_Wait:
 
 BV_Exit:
 	;Disable copper to use blitter
-	IF	BLITTER_WITH_COPPER=1
 	move.w	#$0000,copcon(a6)
-	ENDIF
 
 	movem.l (sp)+,d0-d7/a1-a6
 	rts
@@ -74,8 +68,7 @@ BV_VBlank:
 	movem.l d0-a6,-(sp)
 
 	bsr	Clear_Screen
-	bsr	Draw_Object
-	bsr	Blitter_Fill_Screen
+	bsr	Draw_And_Fill
 
 	bsr	Write_Copper
 	bsr	VideoBuffersSwap
@@ -179,35 +172,9 @@ L_STableLoop:
 	movem.l	(sp)+,d0-d1/a0
 	rts
 
-Blitter_Fill_Screen:
-	move.l	a0,-(sp)
-	move.l	VideoBuffers(pc),a0
-	lea	$4ffe(a0),a0
-BFS_Wait_Blitter:
-	btst	#$0006,$0002(a6)
-	bne.s	BFS_Wait_Blitter
-	move.l	#$09f0001a,$0040(a6)
-	move.l	#$ffffffff,$0044(a6)
-	move.l	a0,$0050(a6)
-	move.l	a0,$0054(a6)
-	move.l	#$00000000,$0064(a6)
-	move.w	#$8014,$0058(a6)
-	move.l	(sp)+,a0
-	rts
 
 Clear_Screen:
-	movem.l	a0-a6/d0-d7,-(sp)
-	IF	BLITTER_WITH_COPPER=0
-
-CS_Wait_Blitter:
-	btst	#$0006,$0002(a6)
-	bne.s	CS_Wait_Blitter
-	move.l	#$01000000,$0040(a6)
-	move.w	#$0000,$0066(a6)
-	move.l	VideoBuffers(pc),$0054(a6)
-	move.w	#256*64+320/16,$0058(a6)
-
-	ELSE
+	movem.l	d0-a6,-(sp)
 
 	move.l	VideoBuffers(pc),d0
 	lea	BV_CCB_Destination,a0
@@ -218,8 +185,6 @@ CS_Wait_Blitter:
 	lea	BV_CopperClearBlitter,a0
 	move.l	a0,cop2lc(a6)
 	move.w	#0,copjmp2(a6)
-
-	ENDIF
 
 	moveq	#$00,d0
 	moveq	#$00,d1
@@ -241,7 +206,7 @@ CS_Wait_Blitter:
 	movem.l	d0-a5,-(a6)
 	ENDR
 	movem.l	d0-a3,-(a6)
-	movem.l	(sp)+,a0-a6/d0-d7
+	movem.l	(sp)+,d0-a6
 	rts
 
 
@@ -251,7 +216,7 @@ Down	=	255
 Right	=	319
 
 Draw_Object_Test:
-	movem.l	d0-d7/a0-a6,-(sp)
+	movem.l	d0-a6,-(sp)
 	move.l	Curent_Object(pc),a0		;Object Data in a0
 	move.l	$14(a0),a1			;Object Rotated Dots in a1
 	move.l	$18(a0),a4			;Object Normals in a4
@@ -489,42 +454,94 @@ Cl_Line_Out:
 	cmp.w	#$ffff,$0002(a0)		;Test if Object End
 	bne.w	DOT_Next_Line			;It is Not Poligon End
 DOT_End:
-	move.w	#$aaaa,(a2)			;Mark End of Line Area
-	move.w	#$aaaa,(a3)			;Mark End of Clipped Area
-	movem.l	(sp)+,d0-d7/a0-a6
+	move.w	#$ffff,(a2)			;Mark End of Line Area
+	move.w	#$ffff,(a3)			;Mark End of Clipped Area
+	movem.l	(sp)+,d0-a6
 	rts
 
-Draw_Object:
-	movem.l	d0-d7/a0-a5,-(sp)
+
+Draw_And_Fill:
+	movem.l	d0-a5,-(sp)
 	move.l	VideoBuffers(pc),a0	;VideoBuffers in a0
 	lea	L_YTable(pc),a1		;L_YTable in a1
 	lea	L_SizeTable(pc),a2	;L_SizeTable in a2
+
+	lea	BV_CopperDrawBlitter,a5
+	; line drawing common
+	move.l	#$00010000,(a5)+	;Wait blitter
+	move.l	#$0001fffe,(a5)+
+	move.w	#bltbdat,(a5)+
+	move.w	#$ffff,(a5)+
+	move.w	#bltadat,(a5)+
+	move.w	#$8000,(a5)+
+	move.w	#bltafwm,(a5)+
+	move.w	#$ffff,(a5)+
+	move.w	#bltalwm,(a5)+
+	move.w	#$ffff,(a5)+
+	move.w	#bltcmod,(a5)+
+	move.w	#L_Width,(a5)+
+	move.w	#bltdmod,(a5)+
+	move.w	#L_Width,(a5)+
+
 	lea	DOT_Line_Area(pc),a3	;Line Area in a3
-DO_Wait_Blitter:
-	btst	#$06,$02(a6)
-	bne.s	DO_Wait_Blitter
-	move.l	#$ffff8000,$72(a6)	;BLTBDAT,BLTADAT
-	move.l	#$ffffffff,$44(a6)	;BLTAFWM,BLTALWM
-	move.w	#L_Width,$60(a6)	;BLTCMOD
-	move.w	#L_Width,$66(a6)	;BLTDMOD
 DO_Next_Line:
-	cmp.w	#$aaaa,(a3)		;Test if end
-	beq.s	DO_Draw_Clipped
 	move.w	(a3)+,d4		;Get Color in d4
+	bmi.s	DO_Draw_Clipped
 	movem.w	(a3)+,d0-d3
-	bsr.s	Line
+	bsr.w	Line
 	bra.s	DO_Next_Line
+
 DO_Draw_Clipped:
 	lea	DOT_Clipped(pc),a3
 DO_Next_Clipped_Line:
-	cmp.w	#$aaaa,(a3)
-	beq.s	DO_End
 	move.w	(a3)+,d4
+	bmi.s	DO_Fill
 	move.w	(a3)+,d1
 	move.w	(a3)+,d3
 	bsr.w	Line_Vertical
 	bra.s	DO_Next_Clipped_Line
-DO_End:	movem.l	(sp)+,d0-d7/a0-a5
+
+DO_Fill:
+	lea	$4ffe(a0),a0
+	move.l	#$00010000,(a5)+
+	move.l	#$0001fffe,(a5)+
+	move.w	#bltcon0,(a5)+
+	move.w	#$09f0,(a5)+
+	move.w	#bltcon1,(a5)+
+	move.w	#$001a,(a5)+
+	move.w	#bltafwm,(a5)+
+	move.w	#$ffff,(a5)+
+	move.w	#bltalwm,(a5)+
+	move.w	#$ffff,(a5)+
+	move.l	a0,d0
+	move.w	#bltapt+2,(a5)+
+	move.w	d0,(a5)+
+	swap	d0
+	move.w	#bltapt,(a5)+
+	move.w	d0,(a5)+
+	move.l	a0,d0
+	move.w	#bltdpt+2,(a5)+
+	move.w	d0,(a5)+
+	swap	d0
+	move.w	#bltdpt,(a5)+
+	move.w	d0,(a5)+
+	move.w	#bltamod,(a5)+
+	move.w	#$0000,(a5)+
+	move.w	#bltdmod,(a5)+
+	move.w	#$0000,(a5)+
+	move.w	#bltsize,(a5)+
+	move.w	#$8014,(a5)+
+
+	move.l	#$00010000,(a5)+	;Wait blitter finish
+	move.l	#$0001fffe,(a5)+
+	move.l	#$fffffffe,(a5)+	;End of Copper list
+	move.l	#$fffffffe,(a5)+	;End of Copper list
+
+	lea	BV_CopperDrawBlitter,a0
+	move.l	a0,cop2lc(a6)
+	move.w	#0,copjmp2(a6)
+
+	movem.l	(sp)+,d0-a5
 	rts
 
 Line:	movem.l	d2-d7/a3,-(sp)
@@ -575,37 +592,51 @@ L_NoSignFlag:
 	sub.w	d2,d3		;d1=2dy-2dx This is for BLTAMOD
 	add.w	d2,d2		;Add 1 to Height and 1 to width
 	move.w	(a2,d2.w),d2	;Set BLTSIZE in d2
-	btst	#0,d4		;Test for 0 Bit Plane
-	beq.s	L_NothingOn0BM	;if 0 then go to next Bit Map
-L_Waitblit0:
-	btst	#6,$2(a6)
-	bne.s	L_Waitblit0
-	move.l	d3,$62(a6)	;BLTBMOD 2dy,BLTAMOD 2dy-2dx
-	move.w	d1,$52(a6)	;BLTAPTL 2dy-dx
-	move.l	d5,$40(a6)	;BLTCON0,BLTCON1
-	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
-	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
-	move.w	d2,$58(a6)	;BLTSIZE
-L_NothingOn0BM:
-	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a2
-	btst	#1,d4		;Test for 1 Bit Plane
-	beq.s	L_End		;if 0 then go to next Bit Map
-L_WaitBlit1:
-	btst	#6,$2(a6)
-	bne.s	L_WaitBlit1
-	move.l	d3,$62(a6)	;BLTBMOD 2dy,BLTAMOD 2dy-2dx
-	move.w	d1,$52(a6)	;BLTAPTL 2dy-dx
-	move.l	d5,$40(a6)	;BLTCON0,BLTCON1
-	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
-	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
-	move.w	d2,$58(a6)	;BLTSIZE
+
+	moveq	#L_BMaps-1,d7
+L_NextBitmap:
+	lsr.w	#1,d4
+	bcc.s	L_NothingOnBM
+	move.l	#$00010000,(a5)+
+	move.l	#$0001fffe,(a5)+
+	move.w	#bltamod,(a5)+	;BLTAMOD
+	move.w	d3,(a5)+	;2dy-2dx
+	swap	d3
+	move.w	#bltbmod,(a5)+	;BLTBMOD
+	move.w	d3,(a5)+	;2dy
+	swap	d3
+	move.w	#bltapt+2,(a5)+	;BLTAPTL
+	move.w	d1,(a5)+	;2dy-dx
+	move.w	#bltcon1,(a5)+	;BLTCON1
+	move.w	d5,(a5)+
+	swap	d5
+	move.w	#bltcon0,(a5)+	;BLTCON0
+	move.w	d5,(a5)+
+	swap	d5
+	move.l	a3,d6
+	move.w	#bltcpt+2,(a5)+	;BLTCPTL
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltcpt,(a5)+	;BLTCPTH
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltdpt+2,(a5)+	;BLTDPTL
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltdpt,(a5)+	;BLTDPTH
+	move.w	d6,(a5)+
+	move.w	#bltsize,(a5)+	;BLTSIZE
+	move.w	d2,(a5)+
+L_NothingOnBM:
+	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a3
+	dbf	d7,L_NextBitmap
 L_End:	movem.l	(sp)+,d2-d7/a3
 	rts
 
 Line_Vertical:
 	movem.l	d2-d7/a3,-(sp)
 	cmp.w	d1,d3
-	beq.s	LV_End
+	beq	LV_End
 	bgt.s	LV_NoChange
 	exg	d1,d3
 LV_NoChange:
@@ -622,30 +653,43 @@ LV_NoChange:
 	neg.w	d3
 	ext.l	d3
 
-	btst	#0,d4		;Test for 0 Bit Plane
-	beq.s	LV_NothingOn0BM	;if 0 then go to next Bit Map
-LV_Waitblit0:
-	btst	#6,$2(a6)
-	bne.s	LV_Waitblit0
-	move.l	d3,$62(a6)	;BLTBMOD 2dy,BLTAMOD 2dy-2dx
-	move.w	d1,$52(a6)	;BLTAPTL 2dy-dx
-	move.l	d5,$40(a6)	;BLTCON0,BLTCON1
-	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
-	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
-	move.w	d2,$58(a6)	;BLTSIZE
-LV_NothingOn0BM:
+	moveq	#L_BMaps-1,d7
+LV_NextBitmap:
+	lsr.w	#1,d4
+	bcc.s	LV_NothingOnBM
+	move.l	#$00010000,(a5)+
+	move.l	#$0001fffe,(a5)+
+	move.w	#bltamod,(a5)+	;BLTAMOD
+	move.w	d3,(a5)+	;2dy-2dx
+	swap	d3
+	move.w	#bltbmod,(a5)+	;BLTBMOD
+	move.w	d3,(a5)+	;2dy
+	swap	d3
+	move.w	#bltapt+2,(a5)+	;BLTAPTL
+	move.w	d1,(a5)+	;2dy-dx
+	move.w	#bltcon1,(a5)+	;BLTCON1
+	move.w	d5,(a5)+
+	swap	d5
+	move.w	#bltcon0,(a5)+	;BLTCON0
+	move.w	d5,(a5)+
+	swap	d5
+	move.l	a3,d6
+	move.w	#bltcpt+2,(a5)+	;BLTCPTL
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltcpt,(a5)+	;BLTCPTH
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltdpt+2,(a5)+	;BLTDPTL
+	move.w	d6,(a5)+
+	swap	d6
+	move.w	#bltdpt,(a5)+	;BLTDPTH
+	move.w	d6,(a5)+
+	move.w	#bltsize,(a5)+	;BLTSIZE
+	move.w	d2,(a5)+
+LV_NothingOnBM:
 	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a2
-	btst	#1,d4		;Test for 1 Bit Plane
-	beq.s	LV_End		;if 0 then go to next Bit Map
-LV_WaitBlit1:
-	btst	#6,$2(a6)
-	bne.s	LV_WaitBlit1
-	move.l	d3,$62(a6)	;BLTBMOD 2dy,BLTAMOD 2dy-2dx
-	move.w	d1,$52(a6)	;BLTAPTL 2dy-dx
-	move.l	d5,$40(a6)	;BLTCON0,BLTCON1
-	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
-	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
-	move.w	d2,$58(a6)	;BLTSIZE
+	dbf	d7,LV_NextBitmap
 LV_End:	movem.l	(sp)+,d2-d7/a3
 	rts
 
