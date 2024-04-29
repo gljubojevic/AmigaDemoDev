@@ -651,11 +651,6 @@ L_NothingOnBM:
 ;a2 - Blitter size table
 ;a5 - Copper list to write to
 Line_Vertical:
-	cmp.w	d1,d3
-	beq	LV_End
-	bgt.s	LV_NoChange
-	exg	d1,d3
-LV_NoChange:
 	subq.w	#$01,d3
 	sub.w	d1,d3
 	move.l	#$fb4a0043,d5
