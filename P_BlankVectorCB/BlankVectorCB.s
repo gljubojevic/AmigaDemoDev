@@ -461,6 +461,13 @@ DOT_End:
 	movem.l	(sp)+,d0-a6
 	rts
 
+;Macro to put two words as long constant in destination
+;	\1 - Hi Word
+;	\2 - Lo Word
+;	\3 - Destination
+LC2Dst:	MACRO
+	move.l	#(\1<<16|\2),\3
+	ENDM
 
 Draw_And_Fill:
 	movem.l	d0-a5,-(sp)
@@ -470,21 +477,15 @@ Draw_And_Fill:
 
 	lea	BV_CopperDrawBlitter,a5
 	; line drawing common
-	move.l	#$01800ff0,(a5)+
-	move.l	#$00010000,(a5)+	;Wait blitter
-	;move.l	#$0001fffe,(a5)+
-	move.w	#bltbdat,(a5)+
-	move.w	#$ffff,(a5)+
-	move.w	#bltadat,(a5)+
-	move.w	#$8000,(a5)+
-	move.w	#bltafwm,(a5)+
-	move.w	#$ffff,(a5)+
-	move.w	#bltalwm,(a5)+
-	move.w	#$ffff,(a5)+
-	move.w	#bltcmod,(a5)+
-	move.w	#L_Width,(a5)+
-	move.w	#bltdmod,(a5)+
-	move.w	#L_Width,(a5)+
+	LC2Dst	$0180,$0ff0,(a5)+
+	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
+	LC2Dst	bltbdat,$ffff,(a5)+
+	LC2Dst	bltadat,$8000,(a5)+
+	LC2Dst	bltafwm,$ffff,(a5)+
+	LC2Dst	bltalwm,$ffff,(a5)+
+	LC2Dst	bltcmod,L_Width,(a5)+
+	LC2Dst	bltdmod,L_Width,(a5)+
 
 	lea	DOT_Line_Area(pc),a3	;Line Area in a3
 DO_Next_Line:
@@ -516,17 +517,13 @@ DOV_NoChange:
 
 DO_Fill:
 	lea	$4ffe(a0),a0
-	move.l	#$00010000,(a5)+
-	;move.l	#$0001fffe,(a5)+
-	move.l	#$01800f0f,(a5)+
-	move.w	#bltcon0,(a5)+
-	move.w	#$09f0,(a5)+
-	move.w	#bltcon1,(a5)+
-	move.w	#$001a,(a5)+
-	move.w	#bltafwm,(a5)+
-	move.w	#$ffff,(a5)+
-	move.w	#bltalwm,(a5)+
-	move.w	#$ffff,(a5)+
+	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
+	LC2Dst	$0180,$0f0f,(a5)+
+	LC2Dst	bltcon0,$09f0,(a5)+
+	LC2Dst	bltcon1,$001a,(a5)+
+	LC2Dst	bltafwm,$ffff,(a5)+
+	LC2Dst	bltalwm,$ffff,(a5)+
 	move.l	a0,d0
 	move.w	#bltapt+2,(a5)+
 	move.w	d0,(a5)+
@@ -537,18 +534,15 @@ DO_Fill:
 	move.w	d0,(a5)+
 	move.w	#bltdpt,(a5)+
 	move.w	d0,(a5)+
-	move.w	#bltamod,(a5)+
-	move.w	#$0000,(a5)+
-	move.w	#bltdmod,(a5)+
-	move.w	#$0000,(a5)+
-	move.w	#bltsize,(a5)+
-	move.w	#$8014,(a5)+
+	LC2Dst	bltamod,$0000,(a5)+
+	LC2Dst	bltdmod,$0000,(a5)+
+	LC2Dst	bltsize,$8014,(a5)+
 
-	move.l	#$00010000,(a5)+	;Wait blitter finish
-	;move.l	#$0001fffe,(a5)+
-	move.l	#$01800000,(a5)+
-	move.l	#$fffffffe,(a5)+	;End of Copper list
-	move.l	#$fffffffe,(a5)+	;End of Copper list
+	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
+	LC2Dst	$0180,$0000,(a5)+	;Wait blitter
+	LC2Dst	$ffff,$fffe,(a5)+	;End of Copper list
+	LC2Dst	$ffff,$fffe,(a5)+	;End of Copper list
 
 	lea	BV_CopperDrawBlitter,a0
 	move.l	a0,cop2lc(a6)
@@ -613,8 +607,8 @@ L_NoSignFlag:
 L_NextBitmap:
 	lsr.w	#1,d4
 	bcc.s	L_NothingOnBM
-	move.l	#$00010000,(a5)+
-	;move.l	#$0001fffe,(a5)+
+	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
 	move.w	#bltamod,(a5)+	;BLTAMOD
 	move.w	d3,(a5)+	;2dy-2dx
 	swap	d3
@@ -679,8 +673,8 @@ LV_NoChange:
 LV_NextBitmap:
 	lsr.w	#1,d4
 	bcc.s	LV_NothingOnBM
-	move.l	#$00010000,(a5)+
-	;move.l	#$0001fffe,(a5)+
+	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
 	move.w	#bltamod,(a5)+	;BLTAMOD
 	move.w	d3,(a5)+	;2dy-2dx
 	swap	d3
