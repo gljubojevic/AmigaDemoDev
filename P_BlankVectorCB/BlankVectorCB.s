@@ -699,7 +699,7 @@ LV_NextBitmap:
 LV_NothingOnBM:
 	lea	L_BMapWid(a4),a4	;Adress of next Bit Map in a4
 	dbf	d7,LV_NextBitmap
-LV_End:	rts
+	rts
 
 Move_Object:
 	movem.l	d0-d1/a0,-(sp)
