@@ -67,11 +67,10 @@ BV_Exit:
 BV_VBlank:
 	movem.l d0-a6,-(sp)
 
-	bsr	Clear_Screen
+	;bsr	Clear_Screen
 	;move.w	#$00f0,$180(a6)
 	bsr	Draw_And_Fill
 	;move.w	#$0000,$180(a6)
-
 	bsr	Write_Copper
 	bsr	VideoBuffersSwap
 
@@ -79,6 +78,7 @@ BV_VBlank:
 	bsr	Move_Object
 	bsr	RotateXYZ
 	bsr	Draw_Object_Test
+	bsr	Clear_ScreenCPU
 	;move.w	#$0000,$180(a6)
 
 	movem.l (sp)+,d0-a6
@@ -90,6 +90,7 @@ BV_VBlank:
 VideoBuffers:
 	dc.l	0	;Draw video buffer
 	dc.l	0	;Show video buffer
+	dc.l	0	;Clear video buffer
 
 VideoBuffersSet:
 	movem.l	a0-a1,-(sp)
@@ -97,6 +98,8 @@ VideoBuffersSet:
 	lea	BV_Video00,a1
 	move.l	a1,(a0)+
 	lea	BV_Video01,a1
+	move.l	a1,(a0)+
+	lea	BV_Video02,a1
 	move.l	a1,(a0)+
 	movem.l	(sp)+,a0-a1
 	rts
@@ -106,8 +109,9 @@ VideoBuffersSwap:
 	lea VideoBuffers(pc),a0
 	lea $4(a0),a1
 	move.l	(a0),d0
-	move.l	(a1),(a0)
-	move.l	d0,(a1)
+	move.l	(a1)+,(a0)+
+	move.l	(a1)+,(a0)+
+	move.l	d0,(a0)
 	movem.l	(sp)+,a0-a1/d0
 	rts
 
@@ -175,19 +179,44 @@ L_STableLoop:
 	rts
 
 
-Clear_Screen:
+;Clear_Screen:
+;	movem.l	d0-a6,-(sp)
+;
+;	move.l	VideoBuffers+4(pc),d0
+;	lea	BV_CCB_Destination,a0
+;	move.w	d0,$6(a0)
+;	swap	d0
+;	move.w	d0,$2(a0)
+;	move.w	#256*64+320/16,$a(a0)
+;	lea	BV_CopperClearBlitter,a0
+;	move.l	a0,cop2lc(a6)
+;	move.w	#0,copjmp2(a6)
+;
+;	moveq	#$00,d0
+;	moveq	#$00,d1
+;	moveq	#$00,d2
+;	moveq	#$00,d3
+;	moveq	#$00,d4
+;	moveq	#$00,d5
+;	moveq	#$00,d6
+;	moveq	#$00,d7
+;	move.l	d0,a0
+;	move.l	d0,a1
+;	move.l	d0,a2
+;	move.l	d0,a3
+;	move.l	d0,a4
+;	move.l	d0,a5
+;	move.l	VideoBuffers+4(pc),a6
+;	lea	$5000(a6),a6
+;	REPT	182
+;	movem.l	d0-a5,-(a6)
+;	ENDR
+;	movem.l	d0-a3,-(a6)
+;	movem.l	(sp)+,d0-a6
+;	rts
+
+Clear_ScreenCPU:
 	movem.l	d0-a6,-(sp)
-
-	move.l	VideoBuffers(pc),d0
-	lea	BV_CCB_Destination,a0
-	move.w	d0,$6(a0)
-	swap	d0
-	move.w	d0,$2(a0)
-	move.w	#256*64+320/16,$a(a0)
-	lea	BV_CopperClearBlitter,a0
-	move.l	a0,cop2lc(a6)
-	move.w	#0,copjmp2(a6)
-
 	moveq	#$00,d0
 	moveq	#$00,d1
 	moveq	#$00,d2
@@ -203,14 +232,13 @@ Clear_Screen:
 	move.l	d0,a4
 	move.l	d0,a5
 	move.l	VideoBuffers(pc),a6
-	lea	$5000(a6),a6
-	REPT	182
+	lea	(320/8*256*2)(a6),a6
+	REPT	365
 	movem.l	d0-a5,-(a6)
 	ENDR
-	movem.l	d0-a3,-(a6)
+	movem.l	d0-a1,-(a6)
 	movem.l	(sp)+,d0-a6
 	rts
-
 
 Up	=	0
 Left	=	0
@@ -477,7 +505,7 @@ Draw_And_Fill:
 
 	lea	BV_CopperDrawBlitter,a5
 	; line drawing common
-	LC2Dst	$0180,$0ff0,(a5)+
+	;LC2Dst	$0180,$0ff0,(a5)+
 	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
 	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
 	LC2Dst	bltbdat,$ffff,(a5)+
@@ -519,7 +547,7 @@ DO_Fill:
 	lea	$4ffe(a0),a0
 	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
 	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
-	LC2Dst	$0180,$0f0f,(a5)+
+	;LC2Dst	$0180,$0f0f,(a5)+
 	LC2Dst	bltcon0,$09f0,(a5)+
 	LC2Dst	bltcon1,$001a,(a5)+
 	LC2Dst	bltafwm,$ffff,(a5)+
@@ -540,7 +568,7 @@ DO_Fill:
 
 	LC2Dst	$0001,$0000,(a5)+	;Wait blitter
 	;LC2Dst	$$0001,$fffe,(a5)+	;Wait blitter
-	LC2Dst	$0180,$0000,(a5)+	;Wait blitter
+	;LC2Dst	$0180,$0000,(a5)+	;Wait blitter
 	LC2Dst	$ffff,$fffe,(a5)+	;End of Copper list
 	LC2Dst	$ffff,$fffe,(a5)+	;End of Copper list
 
