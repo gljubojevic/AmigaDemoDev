@@ -21,8 +21,8 @@
 
 	INCDIR	""	;return include folder to root
 
-DEBUGING	= 1	;use 1 if debuging
-COPPERINT	= 1	;use 1 if Copper int othervise is vertb int
+DEBUGGING	= 1	;use 1 if debugging
+COPPERINT	= 1	;use 1 if Copper int otherwise is vertb int
 INPUTHANDLER	= 0	;use 1 if using input handler
 DOSLIB		= 0	;use 1 if dos library is needed
 DMA_ACTIVATE	= (DMAF_SETCLR|DMAF_SPRITE|DMAF_BLITTER|DMAF_COPPER|DMAF_RASTER)

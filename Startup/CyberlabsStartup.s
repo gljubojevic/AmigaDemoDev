@@ -1,6 +1,6 @@
 ;*************************************************************************
 ;Cyberlabs startup code for system friendly intros or demos
-;Copy code below to beginning of intro code and uncoment it
+;Copy code below to beginning of intro code and uncomment it
 ;Customize to and use it
 ;NOTE: Remember to include CyberlabStartupCopper.s
 ;*************************************************************************
@@ -26,8 +26,8 @@
 ;
 ;	INCDIR	""
 ;
-;DEBUGING	=	1	;use 1 if debuging
-;COPPERINT	=	1	;use 1 if Copper int othervise is vertb int
+;DEBUGGING	=	1	;use 1 if debugging
+;COPPERINT	=	1	;use 1 if Copper int otherwise is vertb int
 ;INPUTHANDLER	=	0	;use 1 if using input handler
 ;DOSLIB		=	0	;use 1 if dos library is needed
 ;DMA_ACTIVATE	= 	(DMAF_SETCLR|DMAF_SPRITE|DMAF_RASTER|DMAF_COPPER)
@@ -96,7 +96,7 @@
 Startup_Init:
 	movem.l	d1-a6,-(sp)
 
-	IF	DEBUGING=0
+	IF	DEBUGGING=0
 	sub.l	a1,a1			;Clear a1
 	CALLEXEC	FindTask	;Find Task
 	move.l	d0,a4			;Task Ptr in a4
@@ -211,7 +211,7 @@ SR_ERROR_IN_Gfx_INIT:
 SR_ERROR_No_DOS_Open:
 	ENDIF
 
-	IF	DEBUGING=0
+	IF	DEBUGGING=0
 	tst.l	WBMessage
 	beq.s	SR_Not_Started_From_WB
 	CALLEXEC	Forbid
@@ -529,7 +529,7 @@ WaitMouseLeftReleased:
 
 
 ;d0.w,d1.w	- Current mouse X,Y
-;New position is calculated end returened in d0,d1
+;New position is calculated end returned in d0,d1
 Mouse:	movem.l	d2/a0,-(sp)
 	lea	MouseOld(pc),a0
 	move.w	(a0),d2
