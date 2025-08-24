@@ -3,6 +3,10 @@
 	INCDIR	"../Include/"
 	INCLUDE	"hardware/custom.i"	
 	INCDIR	""
+	INCLUDE "no_cpu/recorder.s"
+
+; Enable NO CPU Copper recording
+NO_CPU_RECORDER_ENABLE	SET	1
 
 ;*****************************************************************
 ;Init for demo part, Do all init for part here e.g. create tables
@@ -61,6 +65,8 @@ BV_Exit:
 BV_VBlank:
 	movem.l d0-a6,-(sp)
 
+	REC_FRAME_START
+
 	bsr	Clear_Screen
 	bsr	Draw_Object
 	bsr	Blitter_Fill_Screen
@@ -78,6 +84,8 @@ BV_VBlank:
 ;	bne.s	CI_Wait_Blitter
 ;	move.w	#$0000,$180(a6)
 
+	REC_FRAME_END
+	
 	movem.l (sp)+,d0-a6
 	rts
 

@@ -46,8 +46,8 @@ PART_RUN:	MACRO
 ;***********************************
 ; Demo parts for on/off
 PART_EXAMPLE		= 0	; include Example demo part
-PART_BLANK_VECTOR	= 0	; include Blank Vector demo part
-PART_BLANK_VECTOR_CB	= 1	; include Blank Vector copper blitter demo part
+PART_BLANK_VECTOR	= 1	; include Blank Vector demo part
+PART_BLANK_VECTOR_CB	= 0	; include Blank Vector copper blitter demo part
 
 Demo:	
 	movem.l	d0-a6,-(sp)
