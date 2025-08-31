@@ -33,7 +33,8 @@ BV_CColors:
 	dc.w	$0184,$0000			;COLOR02
 	dc.w	$0186,$0000			;COLOR03
 	IF	COPPERINT=1
-	;dc.w	$2c01,$ff00
+	dc.w	$ffe1,$fffe
+	dc.w	$2c01,$ff00
 	dc.w	$009c,$8010			;INTREQ
 	ENDIF
 	dc.w	$ffff,$fffe			;End of Copper List

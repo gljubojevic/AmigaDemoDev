@@ -1,12 +1,12 @@
-; Use prefix for all lables e.g "BV_" for Blank Vector part
+; Use prefix for all labels e.g "BV_" for Blank Vector part
 
 	INCDIR	"../Include/"
 	INCLUDE	"hardware/custom.i"	
 	INCDIR	""
-	INCLUDE "no_cpu/recorder.s"
 
 ; Enable NO CPU Copper recording
 NO_CPU_RECORDER_ENABLE	SET	1
+	INCLUDE "no_cpu/recorder.s"
 
 ;*****************************************************************
 ;Init for demo part, Do all init for part here e.g. create tables
@@ -20,19 +20,39 @@ NO_CPU_RECORDER_ENABLE	SET	1
 BV_Init:
 	movem.l d0-d7/a3-a6,-(sp)
 
+	; *** init recording
+	REC_INIT
+	; *** add symbols
+	REC_SYMBOL_ADD	#BV_Video00,#BV_Video00_Name
+	REC_SYMBOL_ADD	#BV_Video01,#BV_Video01_Name
+	; *** copper prefix
+	REC_WORD	#$0000,#$01fc
+	REC_WORD	#$2c81,#$008e	;DIWSTRT
+	REC_WORD	#$2cc1,#$0090	;DIWSTOP
+	REC_WORD	#$0038,#$0092	;DDFSTRT
+	REC_WORD	#$00d0,#$0094	;DDFSTOP
+	REC_WORD	#$0028,#$0108	;BPL1MOD
+	REC_WORD	#$0028,#$010a	;BPL2MOD
+	REC_WORD	#$2200,#$0100	;BPLCON0
+	REC_WORD	#$0000,#$0102	;BPLCON1
+	REC_WORD	#$0000,#$0104	;BPLCON2
+	REC_FRAME_END	;Just to have COP1JMP as marker
+	; ***********************
+
 	bsr	Line_TablesCreate
 	bsr	VideoBuffersSet
-	bsr	Write_Copper
+	;bsr	Write_Copper
 
 	lea	Cube(pc),a0
-	move.l	a0,Curent_Object
-	bsr	RotateXYZ
-	bsr	Draw_Object_Test
+	move.l	a0,Current_Object
+	;bsr	RotateXYZ
+	;bsr	Draw_Object_Test
 
 	;return values for part
 	lea	BV_Copper,a0
 	lea	BV_VBlank(pc),a1
 	lea	BV_Main(pc),a2
+	
 	movem.l (sp)+,d0-d7/a3-a6
 	rts
 
@@ -45,7 +65,9 @@ BV_Main:
 	movem.l d0-d7/a1-a6,-(sp)
 
 	move.l	(a0),d0
-	add.l	#20*50,d0	; wait 20 sec
+;	add.l	#20*50,d0	; wait 20 sec
+;	add.l	#128,d0		; wait 128 frames
+	add.l	#256,d0		; wait 128 frames
 
 BV_Wait:
 	btst	#$6,$bfe001	; exit part on mouse
@@ -67,10 +89,6 @@ BV_VBlank:
 
 	REC_FRAME_START
 
-	bsr	Clear_Screen
-	bsr	Draw_Object
-	bsr	Blitter_Fill_Screen
-
 	bsr	Write_Copper
 	bsr	VideoBuffersSwap
 
@@ -84,6 +102,10 @@ BV_VBlank:
 ;	bne.s	CI_Wait_Blitter
 ;	move.w	#$0000,$180(a6)
 
+	bsr	Clear_Screen
+	bsr	Draw_Object
+	bsr	Blitter_Fill_Screen
+
 	REC_FRAME_END
 	
 	movem.l (sp)+,d0-a6
@@ -92,6 +114,13 @@ BV_VBlank:
 ;*****************************************************************
 ;Demo part routines
 
+; Recorder buffer names
+BV_Video00_Name:
+	dc.b	'BV_Video00',0
+BV_Video01_Name:
+	dc.b	'BV_Video01',0
+
+	CNOP	4,0
 VideoBuffers:
 	dc.l	0	;Draw video buffer
 	dc.l	0	;Show video buffer
@@ -117,11 +146,19 @@ VideoBuffersSwap:
 	rts
 
 Write_Copper:
-	movem.l	d0-d1/a0-a1,-(sp)
+	movem.l	d0-d3/a0-a1,-(sp)
 	move.l	VideoBuffers(pc),d0		;Address of Video Memory in d0
+	; *** copper bitmaps
+	move.l	d0,d2				;Symbol for copper recorder
+	move.w	#$00e0,d3			;Bitplane HW reg	
+	; ***********************
 	lea	BV_CBitplanes,a1		;Address in Copper List
 	moveq	#$01,d1
 WC_NextBitMap:
+	; *** copper bitmaps
+	REC_SYMBOL	d2,d0,d3
+	addq.w	#$4,d3
+	; ***********************
 	move.w	d0,6(a1)
 	swap	d0
 	move.w	d0,2(a1)
@@ -132,8 +169,15 @@ WC_NextBitMap:
 
 	lea	Colors(pc),a0
 	lea	BV_CColors,a1
+	; *** copper bitmaps
+	move.w	#$0180,d3			;Color HW reg	
+	; ***********************
 	moveq	#$03,d1
 WC_NextColor:
+	; *** copper colors
+	REC_WORD	(a0),d3
+	; ***********************
+	addq.w	#$2,d3
 	move.w	(a0)+,$0002(a1)
 	lea	$0004(a1),a1
 	dbf	d1,WC_NextColor
@@ -147,14 +191,14 @@ WC_NextColor:
 	move.w	#$0000,$0006(a1)
 	move.w	#$0000,$000a(a1)
 
-	movem.l	(sp)+,d0-d1/a0-a1
+	movem.l	(sp)+,d0-d3/a0-a1
 	rts
 
 
-L_BMaps=2			;Mumber of bitmaps
+L_BMaps=2			;Number of bitmaps
 L_BMapWid=40			;Width of one bitmap
 L_Width=L_BMaps*L_BMapWid	;Width for line routine
-L_YTableHeight=256		;Max Y cordinate
+L_YTableHeight=256		;Max Y coordinate
 
 Line_TablesCreate:
 	movem.l	d0-d1/a0,-(sp)
@@ -192,18 +236,35 @@ BFS_Wait_Blitter:
 	move.l	a0,$0054(a6)
 	move.l	#$00000000,$0064(a6)
 	move.w	#$8014,$0058(a6)
+	; *** record fill screen
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	#$09f0001a,#$0040
+	REC_LONG	#$ffffffff,#$0044
+	REC_SYMBOL	VideoBuffers(pc),a0,#$0050
+	REC_SYMBOL	VideoBuffers(pc),a0,#$0054
+	REC_LONG	#$00000000,#$0064
+	REC_WORD	#$8014,#$0058
+	;*******************************
 	move.l	(sp)+,a0
 	rts
 
 Clear_Screen:
 	movem.l	a0-a6/d0-d7,-(sp)
+	move.l	VideoBuffers(pc),a0
 CS_Wait_Blitter:
 	btst	#$0006,$0002(a6)
 	bne.s	CS_Wait_Blitter
 	move.l	#$01000000,$0040(a6)
 	move.w	#$0000,$0066(a6)
-	move.l	VideoBuffers(pc),$0054(a6)
+	move.l	a0,$0054(a6)
 	move.w	#256*64+320/16,$0058(a6)
+	; *** record clear screen
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	#$01000000,#$0040
+	REC_WORD	#$0000,#$0066
+	REC_SYMBOL	VideoBuffers(pc),a0,#$0054
+	REC_WORD	#256*2*64+320/16,#$0058
+	;*******************************
 
 	moveq	#$00,d0
 	moveq	#$00,d1
@@ -236,18 +297,18 @@ Right	=	319
 
 Draw_Object_Test:
 	movem.l	d0-d7/a0-a6,-(sp)
-	move.l	Curent_Object(pc),a0		;Object Data in a0
+	move.l	Current_Object(pc),a0		;Object Data in a0
 	move.l	$14(a0),a1			;Object Rotated Dots in a1
 	move.l	$18(a0),a4			;Object Normals in a4
-	move.l	(a0),a0				;Object Poligon Data in a0
+	move.l	(a0),a0				;Object Polygon Data in a0
 	lea	DOT_Line_Area(pc),a2		;Line Area in a2
 	lea	DOT_Clipped(pc),a3		;Clipped Line Area in a3
 	lea	ColorsTable(pc),a5			;ColorTable in a5
 	lea	Colors(pc),a6			;Colors in a6
-	bra.s	DOT_Next_Poligon		;Jump to first Poligon Test
-DOT_Poligon_Start:
+	bra.s	DOT_Next_Polygon		;Jump to first Polygon Test
+DOT_Polygon_Start:
 	addq.l	#$04,a0
-DOT_Next_Poligon:
+DOT_Next_Polygon:
 	move.l	(a0)+,d4			;Color,Flag in d4
 	move.l	(a0)+,d5			;0Dot,1Dot in d5
 	move.l	(a1,d5.w),d1			;X1,Y1 in d1
@@ -267,15 +328,15 @@ DOT_Next_Poligon:
 	muls	d2,d3				;(Y2-Y0)*(X1-X0) in d3
 	muls	d1,d5				;(X2-X0)*(Y1-Y0) in d5
 	sub.l	d5,d3				;(Y2-Y0)*(X1-X0)+(X2-X0)*(Y1-Y0) in d4
-	blt.s	DOT_Poligon_Visible
-DOT_Poligon_Invisible:
+	blt.s	DOT_Polygon_Visible
+DOT_Polygon_Invisible:
 	cmp.w	#$ffff,(a0)			;Test if Object End
 	beq.w	DOT_End				;It is Object End
-	cmp.w	#$aaaa,(a0)+			;Test if Poligon End
-	bne.s	DOT_Poligon_Invisible		;Not End Search Poligon End
-	addq.l	#$06,a4				;Next Poligon Normal
-	bra.s	DOT_Next_Poligon		;Do Next Poligon
-DOT_Poligon_Visible:
+	cmp.w	#$aaaa,(a0)+			;Test if Polygon End
+	bne.s	DOT_Polygon_Invisible		;Not End Search Polygon End
+	addq.l	#$06,a4				;Next Polygon Normal
+	bra.s	DOT_Next_Polygon		;Do Next Polygon
+DOT_Polygon_Visible:
 	swap	d4				;Color in d4.w
 	movem.w	R_CalculationsBefore+12(pc),d0-d2	;X,Y,Z of Normal d0-d2
 	muls	(a4)+,d0
@@ -287,7 +348,7 @@ DOT_Poligon_Visible:
 	swap	d0
 	move.w	d4,d1
 	add.w	d1,d1				;Color Number * 2
-	add.w	d0,d0				;Color Ofset * 2
+	add.w	d0,d0				;Color Offset * 2
 	move.w	(a5,d0.w),(a6,d1.w)		;Color Transfer
 DOT_NO_Color:
 	subq.l	#$06,a0				;Address of first Offset
@@ -468,10 +529,10 @@ Clipping_End:
 	move.w	d2,(a2)+			;X1 in Line Area
 	move.w	d3,(a2)+			;Y1 in Line Area
 Cl_Line_Out:
-	cmp.w	#$aaaa,$0002(a0)		;Test if Poligon End
-	beq.w	DOT_Poligon_Start		;It is Poligon End	
+	cmp.w	#$aaaa,$0002(a0)		;Test if Polygon End
+	beq.w	DOT_Polygon_Start		;It is Polygon End	
 	cmp.w	#$ffff,$0002(a0)		;Test if Object End
-	bne.w	DOT_Next_Line			;It is Not Poligon End
+	bne.w	DOT_Next_Line			;It is Not Polygon End
 DOT_End:
 	move.w	#$aaaa,(a2)			;Mark End of Line Area
 	move.w	#$aaaa,(a3)			;Mark End of Clipped Area
@@ -491,6 +552,13 @@ DO_Wait_Blitter:
 	move.l	#$ffffffff,$44(a6)	;BLTAFWM,BLTALWM
 	move.w	#L_Width,$60(a6)	;BLTCMOD
 	move.w	#L_Width,$66(a6)	;BLTDMOD
+	; *** record line setup
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	#$ffff8000,#$0072
+	REC_LONG	#$ffffffff,#$0044
+	REC_WORD	#L_Width,#$0060
+	REC_WORD	#L_Width,#$0066
+	;*******************************
 DO_Next_Line:
 	cmp.w	#$aaaa,(a3)		;Test if end
 	beq.s	DO_Draw_Clipped
@@ -543,7 +611,7 @@ L_Finish:
 	move.w	d0,d1		;x0 in d1
 	lsr.w	#4,d1		;x0 / 16
 	add.w	d1,d1		;x0 * 2 For Address of First Pixel
-	lea	0(a3,d1.w),a3	;Adress of First Pixel in a2
+	lea	0(a3,d1.w),a3	;Address of First Pixel in a2
 	andi.w	#$000f,d0	;Get Shift in d0
 	ror.w	#$0004,d0	;place Shift value
 	or.w	d0,d5		;b4a-or mode and bca-normal mode
@@ -560,7 +628,7 @@ L_NoSignFlag:
 	add.w	d2,d2		;Add 1 to Height and 1 to width
 	move.w	(a2,d2.w),d2	;Set BLTSIZE in d2
 	btst	#0,d4		;Test for 0 Bit Plane
-	beq.s	L_NothingOn0BM	;if 0 then go to next Bit Map
+	beq	L_NothingOn0BM	;if 0 then go to next Bit Map
 L_Waitblit0:
 	btst	#6,$2(a6)
 	bne.s	L_Waitblit0
@@ -570,10 +638,19 @@ L_Waitblit0:
 	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
 	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
 	move.w	d2,$58(a6)	;BLTSIZE
+	; *** record line draw
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	d3,#$0062
+	REC_WORD	d1,#$0052
+	REC_LONG 	d5,#$0040
+	REC_SYMBOL 	a0,a3,#$0048
+	REC_SYMBOL 	a0,a3,#$0054
+	REC_WORD	d2,#$0058
+	;*******************************
 L_NothingOn0BM:
-	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a2
+	lea	L_BMapWid(a3),a3	;Address of next Bit Map in a2
 	btst	#1,d4		;Test for 1 Bit Plane
-	beq.s	L_End		;if 0 then go to next Bit Map
+	beq	L_End		;if 0 then go to next Bit Map
 L_WaitBlit1:
 	btst	#6,$2(a6)
 	bne.s	L_WaitBlit1
@@ -583,13 +660,22 @@ L_WaitBlit1:
 	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
 	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
 	move.w	d2,$58(a6)	;BLTSIZE
+	; *** record line draw
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	d3,#$0062
+	REC_WORD	d1,#$0052
+	REC_LONG 	d5,#$0040
+	REC_SYMBOL 	a0,a3,#$0048
+	REC_SYMBOL 	a0,a3,#$0054
+	REC_WORD	d2,#$0058
+	;*******************************
 L_End:	movem.l	(sp)+,d2-d7/a3
 	rts
 
 Line_Vertical:
 	movem.l	d2-d7/a3,-(sp)
 	cmp.w	d1,d3
-	beq.s	LV_End
+	beq	LV_End
 	bgt.s	LV_NoChange
 	exg	d1,d3
 LV_NoChange:
@@ -607,7 +693,7 @@ LV_NoChange:
 	ext.l	d3
 
 	btst	#0,d4		;Test for 0 Bit Plane
-	beq.s	LV_NothingOn0BM	;if 0 then go to next Bit Map
+	beq	LV_NothingOn0BM	;if 0 then go to next Bit Map
 LV_Waitblit0:
 	btst	#6,$2(a6)
 	bne.s	LV_Waitblit0
@@ -617,10 +703,19 @@ LV_Waitblit0:
 	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
 	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
 	move.w	d2,$58(a6)	;BLTSIZE
+	; *** record line draw
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	d3,#$0062
+	REC_WORD	d1,#$0052
+	REC_LONG 	d5,#$0040
+	REC_SYMBOL 	a0,a3,#$0048
+	REC_SYMBOL 	a0,a3,#$0054
+	REC_WORD	d2,#$0058
+	;*******************************
 LV_NothingOn0BM:
-	lea	L_BMapWid(a3),a3	;Adress of next Bit Map in a2
+	lea	L_BMapWid(a3),a3	;Address of next Bit Map in a2
 	btst	#1,d4		;Test for 1 Bit Plane
-	beq.s	LV_End		;if 0 then go to next Bit Map
+	beq	LV_End		;if 0 then go to next Bit Map
 LV_WaitBlit1:
 	btst	#6,$2(a6)
 	bne.s	LV_WaitBlit1
@@ -630,13 +725,22 @@ LV_WaitBlit1:
 	move.l	a3,$48(a6)	;BLTCPTH,BLTCPTL
 	move.l	a3,$54(a6)	;BLTDPTH,BLTDPTL
 	move.w	d2,$58(a6)	;BLTSIZE
+	; *** record line draw
+	REC_WORD	#$0000,#$0001	;Wait blitter
+	REC_LONG	d3,#$0062
+	REC_WORD	d1,#$0052
+	REC_LONG 	d5,#$0040
+	REC_SYMBOL 	a0,a3,#$0048
+	REC_SYMBOL 	a0,a3,#$0054
+	REC_WORD	d2,#$0058
+	;*******************************
 LV_End:	movem.l	(sp)+,d2-d7/a3
 	rts
 
 Move_Object:
 	movem.l	d0-d1/a0,-(sp)
 	; rotate object
-	move.l	Curent_Object(pc),a0
+	move.l	Current_Object(pc),a0
 	add.w	#$0010,$04(a0)
 	add.w	#$0008,$06(a0)
 	add.w	#$0020,$08(a0)
@@ -656,16 +760,16 @@ CI_RMB_YP:
 
 RotateXYZ:
 	movem.l	d0-d7/a0-a6,-(sp)
-	move.l	Curent_Object(pc),a0		;Adr. of Obj. data in a0
+	move.l	Current_Object(pc),a0		;Adr. of Obj. data in a0
 	addq.l	#$04,a0				;Get Address of Angles in a0
 	lea	R_CalculationsBefore(pc),a1	;Adr. of Calc. Field in a1
 	lea	R_SinCosTable(pc),a2		;Adr. of Sin & Cos Table in a2
-	movem.w	(a0),d0-d2	;Put Curent Alpha,Beta & Gama in d0-d2
+	movem.w	(a0),d0-d2	;Put Current Alpha,Beta & Gama in d0-d2
 	move.w	#$1ffe,d3	;Get mask in d3
 	and.w	d3,d0		;Alpha Ok!
 	and.w	d3,d1		;Beta Ok!
 	and.w	d3,d2		;Gama Ok!
-	movem.w	d0-d2,(a0)	;Put Curent Alpha,Beta & Gama in table.
+	movem.w	d0-d2,(a0)	;Put Current Alpha,Beta & Gama in table.
 	addq.l	#$06,a0		;This part of table is finished
 	move.w	(a2,d0.w),d3	;Sin(Alpha) in d3
 	move.w	(a2,d1.w),d4	;Sin(Beta) in d4
@@ -765,18 +869,18 @@ R_RotateNextDot:
 	add.l	d0,d2		;d2=G*X0+H*Y0+I*Z0
 	swap	d2		;Z/32768
 	add.w	a5,d2		;Z+TZ
-	move.w	#512,d3		;Zaslon in d3
-	add.w	d3,d2		;Z+Zaslon in d2
-	muls	d3,d6		;Zaslon*X
-	muls	d3,d7		;Zaslon*Y
-	divs	d2,d6		;(Zaslon*X)/(Z+Zaslon)
-	divs	d2,d7		;(Zaslon*Y)/(Z+Zaslon)
+	move.w	#512,d3		;Display in d3
+	add.w	d3,d2		;Z+Display in d2
+	muls	d3,d6		;Display*X
+	muls	d3,d7		;Display*Y
+	divs	d2,d6		;(Display*X)/(Z+Display)
+	divs	d2,d7		;(Display*Y)/(Z+Display)
 
 	add.w	#160,d6
 	add.w	#128,d7
 
 	move.w	d6,(a2)+	;X Rotated in Memory
-	move.w	d7,(a2)+	;Y Rotared in Memory
+	move.w	d7,(a2)+	;Y Rotated in Memory
 ;	move.w	d2,(a2)+	;Z Rotated in Memory  !!!!!!
 	lea	-$12(a1),a1
 	cmp.w	#$ffff,(a0)
@@ -1138,20 +1242,20 @@ R_SinCosTable:
 ;@generated-datagen-end----------------
 
 Cube:
-	dc.l	Cube_Poligons			;$00
+	dc.l	Cube_Polygons			;$00
 	dc.w	0,0,0				;$04 Alfa,Beta,Gama
 	dc.w	0,0,$400			;$0a TX,TY,TZ
 	dc.l	Cube_Dots			;$10
 	dc.l	Cube_Rotated_Dots		;$14
-	dc.l	Cube_Normal_Vektors		;$18
-Cube_Poligons:
+	dc.l	Cube_Normal_Vectors		;$18
+Cube_Polygons:
 	dc.w	1,0,0*4,1*4,2*4,3*4,0*4,$aaaa
 	dc.w	2,0,0*4,4*4,5*4,1*4,0*4,$aaaa
 	dc.w	3,0,1*4,5*4,6*4,2*4,1*4,$aaaa
 	dc.w	1,0,5*4,4*4,7*4,6*4,5*4,$aaaa
 	dc.w	2,0,3*4,2*4,6*4,7*4,3*4,$aaaa
 	dc.w	3,0,7*4,4*4,0*4,3*4,7*4,$ffff
-Cube_Normal_Vektors:
+Cube_Normal_Vectors:
 	dc.w	0,0,16*2
 	dc.w	0,16*2,0
 	dc.w	-16*2,0,0
@@ -1181,7 +1285,7 @@ Cube_Rotated_Dots:
 	dc.w	$ffff
 
 
-Curent_Object:
+Current_Object:
 	dc.l	0
 
 ColorsTable:

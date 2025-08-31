@@ -24,7 +24,7 @@
 DEBUGGING	= 1	;use 1 if debugging
 COPPERINT	= 1	;use 1 if Copper int otherwise is vertb int
 INPUTHANDLER	= 0	;use 1 if using input handler
-DOSLIB		= 0	;use 1 if dos library is needed
+DOSLIB		= 1	;use 1 if dos library is needed
 DMA_ACTIVATE	= (DMAF_SETCLR|DMAF_SPRITE|DMAF_BLITTER|DMAF_COPPER|DMAF_RASTER)
 PART_TIMING	= 0	;use 1 for time measure in VBlank
 
@@ -81,6 +81,7 @@ Demo_MainLoop:
 
 Demo_Exit:
 	bsr	Startup_Restore
+	jsr	NoCpu_RecordingSave
 	movem.l	(sp)+,d0-a6
 	rts
 
@@ -119,6 +120,18 @@ VTBInt_End:
 
 	INCLUDE	"Startup/CyberlabsStartup.s"
 
+; Enable NO CPU Copper recording
+NO_CPU_RECORDER_ENABLE	SET	1
+REC_REFERENCES_SPACE	SET	1024*64
+REC_FRAMES_SPACE	SET	1024*1024
+	INCLUDE	"no_cpu/recorder.s"
+
+NoCpu_RecordingSave:
+	REC_FINISHED
+	REC_SAVE_RECORDING
+	rts
+; ******************************
+
 ;***************************************************
 ;Public/Fast code
 ;***************************************************
@@ -154,6 +167,8 @@ VTBInt_End:
 	IF	PART_EXAMPLE=1
 	INCLUDE	"P_Example/Example_Bss_P.s"
 	ENDIF
+
+	INCLUDE "no_cpu/recorder_Bss_p.s"
 
 ;***************************************************
 ;Chip data

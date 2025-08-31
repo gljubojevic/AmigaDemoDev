@@ -2,3 +2,4 @@
 *.uaem
 build
 uae/dh0/Demo
+uae/dh0/NoCPURecording.s
